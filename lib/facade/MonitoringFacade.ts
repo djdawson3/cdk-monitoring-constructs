@@ -22,6 +22,8 @@ import {
   HeaderWidget,
   IDashboardFactory,
   IDashboardSegment,
+  IDynamicDashboardFactory,
+  IDynamicDashboardSegment,
   IWidgetFactory,
   MonitoringDashboardsOverrideProps,
   SingleWidgetDashboardSegment,
@@ -144,8 +146,13 @@ export interface MonitoringFacadeProps {
 export class MonitoringFacade extends MonitoringScope {
   protected readonly metricFactoryDefaults: MetricFactoryDefaults;
   protected readonly alarmFactoryDefaults: AlarmFactoryDefaults;
-  protected readonly dashboardFactory?: IDashboardFactory;
-  protected readonly createdSegments: IDashboardSegment[];
+  protected readonly dashboardFactory?:
+    | IDashboardFactory
+    | IDynamicDashboardFactory;
+  protected readonly createdSegments: (
+    | IDashboardSegment
+    | IDynamicDashboardSegment
+  )[];
 
   constructor(scope: Construct, id: string, props?: MonitoringFacadeProps) {
     super(scope, id);
@@ -194,15 +201,23 @@ export class MonitoringFacade extends MonitoringScope {
   // =======
 
   createdDashboard(): Dashboard | undefined {
-    return this.dashboardFactory?.createdDashboard();
+    const dashboardFactory = this.dashboardFactory as IDashboardFactory;
+    return dashboardFactory.createdDashboard();
   }
 
   createdSummaryDashboard(): Dashboard | undefined {
-    return this.dashboardFactory?.createdSummaryDashboard();
+    const dashboardFactory = this.dashboardFactory as IDashboardFactory;
+    return dashboardFactory.createdSummaryDashboard();
   }
 
   createdAlarmDashboard(): Dashboard | undefined {
-    return this.dashboardFactory?.createdAlarmDashboard();
+    const dashboardFactory = this.dashboardFactory as IDashboardFactory;
+    return dashboardFactory.createdAlarmDashboard();
+  }
+
+  getDashboard(tag: string): Dashboard | undefined {
+    const dashboardFactory = this.dashboardFactory as IDynamicDashboardFactory;
+    return dashboardFactory.getDashboard(tag);
   }
 
   /**
@@ -295,11 +310,23 @@ export class MonitoringFacade extends MonitoringScope {
       .map((s) => s as Monitoring);
   }
 
+  /**
+   * Adds a dashboard segment which returns dynamic content depending on dashboard type.
+   * @param segment dynamic segment to add.
+   */
+  addDynamicSegment(segment: IDynamicDashboardSegment) {
+    const dashboardFactory = this.dashboardFactory as IDynamicDashboardFactory;
+    dashboardFactory.addDynamicSegment(segment);
+    this.createdSegments.push(segment);
+  }
+
   addSegment(
     segment: IDashboardSegment,
     overrideProps?: MonitoringDashboardsOverrideProps
   ) {
-    this.dashboardFactory?.addSegment({ segment, overrideProps });
+    const dashboardFactory = this.dashboardFactory as IDashboardFactory;
+    dashboardFactory.addSegment({ segment, overrideProps });
+
     this.createdSegments.push(segment);
     return this;
   }
