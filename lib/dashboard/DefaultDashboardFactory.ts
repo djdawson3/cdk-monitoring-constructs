@@ -149,10 +149,6 @@ export class DefaultDashboardFactory
               props.detailDashboardPeriodOverride ?? PeriodOverride.INHERIT,
           }
         );
-
-        // adapt dashbaord to new taggable paradigm
-        this.dashboards.Default = this.dashboard;
-        //this.dashboards.default = this.dashboard;
       }
       if (createSummaryDashboard) {
         anyDashboardCreated = true;
@@ -166,9 +162,6 @@ export class DefaultDashboardFactory
               props.summaryDashboardPeriodOverride ?? PeriodOverride.INHERIT,
           }
         );
-
-        // adapt dashbaord to new taggable paradigm
-        this.dashboards.Summary = this.summaryDashboard;
       }
       if (createAlarmDashboard) {
         anyDashboardCreated = true;
@@ -182,9 +175,6 @@ export class DefaultDashboardFactory
               props.detailDashboardPeriodOverride ?? PeriodOverride.INHERIT,
           }
         );
-
-        // adapt dashbaord to new taggable paradigm
-        this.dashboards.Alarms = this.alarmDashboard;
       }
       this.anyDashboardCreated = anyDashboardCreated;
     }
