@@ -22,12 +22,12 @@ import {
   HeaderWidget,
   IDashboardFactory,
   IDashboardSegment,
-  IDynamicDashboardFactory,
-  IDynamicDashboardSegment,
   IWidgetFactory,
   MonitoringDashboardsOverrideProps,
   SingleWidgetDashboardSegment,
 } from "../dashboard";
+import { IDynamicDashboardSegment } from "../dashboard/DynamicDashboardSegment";
+import { IDynamicDashboardFactory } from "../dashboard/IDynamicDashboardFactory";
 import {
   ApiGatewayMonitoring,
   ApiGatewayMonitoringProps,
@@ -135,7 +135,7 @@ export interface MonitoringFacadeProps {
    *
    * @default - An instance of {@link DefaultDashboardFactory}; facade logical ID used as default name
    */
-  readonly dashboardFactory?: IDashboardFactory;
+  readonly dashboardFactory?: IDashboardFactory | IDynamicDashboardFactory;
 }
 
 /**
@@ -200,22 +200,54 @@ export class MonitoringFacade extends MonitoringScope {
   // GENERIC
   // =======
 
+  isStaticDashboardFactory(
+    factory: IDashboardFactory | IDynamicDashboardFactory | undefined
+  ): factory is IDashboardFactory {
+    return (factory as IDashboardFactory).createdDashboard !== undefined;
+  }
+
+  isDynamicDashboardFactory(
+    factory: IDashboardFactory | IDynamicDashboardFactory | undefined
+  ): factory is IDynamicDashboardFactory {
+    return (factory as IDynamicDashboardFactory).getDashboard !== undefined;
+  }
+
   createdDashboard(): Dashboard | undefined {
+    if (!this.isStaticDashboardFactory(this.dashboardFactory)) {
+      throw new Error(
+        "Attempting to use static dashboard methods with non-static dashboard factory"
+      );
+    }
     const dashboardFactory = this.dashboardFactory as IDashboardFactory;
     return dashboardFactory.createdDashboard();
   }
 
   createdSummaryDashboard(): Dashboard | undefined {
+    if (!this.isStaticDashboardFactory(this.dashboardFactory)) {
+      throw new Error(
+        "Attempting to use static dashboard methods with non-static dashboard factory"
+      );
+    }
     const dashboardFactory = this.dashboardFactory as IDashboardFactory;
     return dashboardFactory.createdSummaryDashboard();
   }
 
   createdAlarmDashboard(): Dashboard | undefined {
+    if (!this.isStaticDashboardFactory(this.dashboardFactory)) {
+      throw new Error(
+        "Attempting to use static dashboard methods with non-static dashboard factory"
+      );
+    }
     const dashboardFactory = this.dashboardFactory as IDashboardFactory;
     return dashboardFactory.createdAlarmDashboard();
   }
 
   getDashboard(tag: string): Dashboard | undefined {
+    if (!this.isDynamicDashboardFactory(this.dashboardFactory)) {
+      throw new Error(
+        "Attempting to use dynamic dashboard methods with non-dynamic dashboard factory"
+      );
+    }
     const dashboardFactory = this.dashboardFactory as IDynamicDashboardFactory;
     return dashboardFactory.getDashboard(tag);
   }
