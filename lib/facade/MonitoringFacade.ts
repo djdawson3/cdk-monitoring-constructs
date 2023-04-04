@@ -1,5 +1,5 @@
 import { Aspects, Stack } from "aws-cdk-lib";
-import { CompositeAlarm, Dashboard, IWidget } from "aws-cdk-lib/aws-cloudwatch";
+import { CompositeAlarm, IWidget } from "aws-cdk-lib/aws-cloudwatch";
 import { Construct } from "constructs";
 
 import { MonitoringAspectProps } from "./IMonitoringAspect";
@@ -20,13 +20,15 @@ import {
   DefaultWidgetFactory,
   HeaderLevel,
   HeaderWidget,
-  IDashboardFactory,
   IDashboardSegment,
   IWidgetFactory,
   MonitoringDashboardsOverrideProps,
   SingleWidgetDashboardSegment,
 } from "../dashboard";
-import { IDynamicDashboardSegment } from "../dashboard/DynamicDashboardSegment";
+import {
+  IDynamicDashboardSegment,
+  StaticSegmentDynamicAdapter,
+} from "../dashboard/DynamicDashboardSegment";
 import { IDynamicDashboardFactory } from "../dashboard/IDynamicDashboardFactory";
 import {
   ApiGatewayMonitoring,
@@ -133,9 +135,9 @@ export interface MonitoringFacadeProps {
   /**
    * Defaults for dashboard factory.
    *
-   * @default - An instance of {@link DefaultDashboardFactory}; facade logical ID used as default name
+   * @default - An instance of {@link DynamicDashboardFactory}; facade logical ID used as default name
    */
-  readonly dashboardFactory?: IDashboardFactory | IDynamicDashboardFactory;
+  readonly dashboardFactory?: IDynamicDashboardFactory;
 }
 
 /**
@@ -146,9 +148,7 @@ export interface MonitoringFacadeProps {
 export class MonitoringFacade extends MonitoringScope {
   protected readonly metricFactoryDefaults: MetricFactoryDefaults;
   protected readonly alarmFactoryDefaults: AlarmFactoryDefaults;
-  protected readonly dashboardFactory?:
-    | IDashboardFactory
-    | IDynamicDashboardFactory;
+  public readonly dashboardFactory?: IDynamicDashboardFactory;
   protected readonly createdSegments: (
     | IDashboardSegment
     | IDynamicDashboardSegment
@@ -199,58 +199,6 @@ export class MonitoringFacade extends MonitoringScope {
 
   // GENERIC
   // =======
-
-  isStaticDashboardFactory(
-    factory: IDashboardFactory | IDynamicDashboardFactory | undefined
-  ): factory is IDashboardFactory {
-    return (factory as IDashboardFactory).createdDashboard !== undefined;
-  }
-
-  isDynamicDashboardFactory(
-    factory: IDashboardFactory | IDynamicDashboardFactory | undefined
-  ): factory is IDynamicDashboardFactory {
-    return (factory as IDynamicDashboardFactory).getDashboard !== undefined;
-  }
-
-  createdDashboard(): Dashboard | undefined {
-    if (!this.isStaticDashboardFactory(this.dashboardFactory)) {
-      throw new Error(
-        "Attempting to use static dashboard methods with non-static dashboard factory"
-      );
-    }
-    const dashboardFactory = this.dashboardFactory as IDashboardFactory;
-    return dashboardFactory.createdDashboard();
-  }
-
-  createdSummaryDashboard(): Dashboard | undefined {
-    if (!this.isStaticDashboardFactory(this.dashboardFactory)) {
-      throw new Error(
-        "Attempting to use static dashboard methods with non-static dashboard factory"
-      );
-    }
-    const dashboardFactory = this.dashboardFactory as IDashboardFactory;
-    return dashboardFactory.createdSummaryDashboard();
-  }
-
-  createdAlarmDashboard(): Dashboard | undefined {
-    if (!this.isStaticDashboardFactory(this.dashboardFactory)) {
-      throw new Error(
-        "Attempting to use static dashboard methods with non-static dashboard factory"
-      );
-    }
-    const dashboardFactory = this.dashboardFactory as IDashboardFactory;
-    return dashboardFactory.createdAlarmDashboard();
-  }
-
-  getDashboard(tag: string): Dashboard | undefined {
-    if (!this.isDynamicDashboardFactory(this.dashboardFactory)) {
-      throw new Error(
-        "Attempting to use dynamic dashboard methods with non-dynamic dashboard factory"
-      );
-    }
-    const dashboardFactory = this.dashboardFactory as IDynamicDashboardFactory;
-    return dashboardFactory.getDashboard(tag);
-  }
 
   /**
    * Returns the created alarms across all the monitorings added up until now.
@@ -347,17 +295,24 @@ export class MonitoringFacade extends MonitoringScope {
    * @param segment dynamic segment to add.
    */
   addDynamicSegment(segment: IDynamicDashboardSegment) {
-    const dashboardFactory = this.dashboardFactory as IDynamicDashboardFactory;
-    dashboardFactory.addDynamicSegment(segment);
+    this.dashboardFactory?.addDynamicSegment(segment);
     this.createdSegments.push(segment);
   }
 
+  /**
+   * Adds a dashboard segment to go on one of the {@link DefaultDashboards}.
+   * @param segment segment to add
+   * @param overrideProps props to specify which default dashboards this segment is added to.
+   */
   addSegment(
     segment: IDashboardSegment,
     overrideProps?: MonitoringDashboardsOverrideProps
   ) {
-    const dashboardFactory = this.dashboardFactory as IDashboardFactory;
-    dashboardFactory.addSegment({ segment, overrideProps });
+    const adaptedSegment = new StaticSegmentDynamicAdapter({
+      segment,
+      overrideProps,
+    });
+    this.dashboardFactory?.addDynamicSegment(adaptedSegment);
 
     this.createdSegments.push(segment);
     return this;

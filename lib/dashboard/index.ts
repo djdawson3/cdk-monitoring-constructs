@@ -4,7 +4,7 @@ export * from "./DynamicDashboardSegment";
 export * from "./DashboardSegment";
 export * from "./DashboardWithBitmapCopy";
 export * from "./DefaultDashboardFactory";
-export * from "./DefaultDynamicDashboardFactory";
+export * from "./DynamicDashboardFactory";
 export * from "./DefaultWidgetFactory";
 export * from "./IDashboardFactory";
 export * from "./IDynamicDashboardFactory";

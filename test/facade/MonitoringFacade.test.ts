@@ -1,6 +1,6 @@
 import { Stack } from "aws-cdk-lib";
 import { Template } from "aws-cdk-lib/assertions";
-import { DefaultDynamicDashboardFactory, MonitoringFacade } from "../../lib";
+import { DynamicDashboardFactory, MonitoringFacade } from "../../lib";
 
 describe("test of defaults", () => {
   test("only default dashboard gets created by default", () => {
@@ -34,7 +34,7 @@ describe("test of defaults", () => {
   test("handles dynamic dashboards", () => {
     const stack = new Stack();
 
-    const dynamicDashboardFactory = new DefaultDynamicDashboardFactory(
+    const dynamicDashboardFactory = new DynamicDashboardFactory(
       stack,
       "TestDynamicDashboardFactory",
       {

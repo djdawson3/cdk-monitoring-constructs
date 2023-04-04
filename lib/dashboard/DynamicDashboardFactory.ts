@@ -7,27 +7,11 @@ import {
 import { Construct } from "constructs";
 
 import { BitmapDashboard } from "./BitmapDashboard";
+import { DashboardRenderingPreference } from "./DashboardRenderingPreference";
 import { DashboardWithBitmapCopy } from "./DashboardWithBitmapCopy";
+import { DefaultDashboards } from "./DefaultDashboardFactory";
 import { IDynamicDashboardSegment } from "./DynamicDashboardSegment";
 import { IDynamicDashboardFactory } from "./IDynamicDashboardFactory";
-
-/**
- * Preferred way of rendering the widgets.
- */
-export enum DynamicDashboardRenderingPreference {
-  /**
-   * create standard set of dashboards with interactive widgets only
-   */
-  INTERACTIVE_ONLY,
-  /**
-   * create standard set of dashboards with bitmap widgets only
-   */
-  BITMAP_ONLY,
-  /**
-   * create a two sets of dashboards: standard set (interactive) and a copy (bitmap)
-   */
-  INTERACTIVE_AND_BITMAP,
-}
 
 export interface DynamicDashboardConfiguration {
   /**
@@ -41,7 +25,7 @@ export interface DynamicDashboardConfiguration {
    *
    * @default - DashboardRenderingPreference.INTERACTIVE_ONLY
    */
-  readonly renderingPreference?: DynamicDashboardRenderingPreference;
+  readonly renderingPreference?: DashboardRenderingPreference;
 
   /**
    * Range of the dashboard
@@ -50,7 +34,7 @@ export interface DynamicDashboardConfiguration {
   readonly range?: Duration;
 
   /**
-   * Period override for the detail dashboard (and other auxiliary dashboards).
+   * Period override for the dashboard.
    * @default - respect individual graphs (PeriodOverride.INHERIT)
    */
   readonly periodOverride?: PeriodOverride;
@@ -58,7 +42,7 @@ export interface DynamicDashboardConfiguration {
 
 export interface MonitoringDynamicDashboardsProps {
   /**
-   * Prefix added to each dashboard name.
+   * Prefix added to each dashboard's name.
    * This allows to have all dashboards sorted close to each other and also separate multiple monitoring facades.
    */
   readonly dashboardNamePrefix: string;
@@ -69,7 +53,7 @@ export interface MonitoringDynamicDashboardsProps {
   readonly dashboardConfigs: DynamicDashboardConfiguration[];
 }
 
-export class DefaultDynamicDashboardFactory
+export class DynamicDashboardFactory
   extends Construct
   implements IDynamicDashboardFactory
 {
@@ -83,9 +67,19 @@ export class DefaultDynamicDashboardFactory
     super(scope, id);
 
     props.dashboardConfigs.forEach((dashboardConfig) => {
+      if (this.dashboards[dashboardConfig.name]) {
+        throw new Error("Cannot have duplicate dashboard names!");
+      }
+
+      if (
+        Object.values<string>(DefaultDashboards).includes(dashboardConfig.name)
+      ) {
+        throw new Error("Cannot have reserved dashboard names!");
+      }
+
       const renderingPreference =
         dashboardConfig.renderingPreference ??
-        DynamicDashboardRenderingPreference.INTERACTIVE_ONLY;
+        DashboardRenderingPreference.INTERACTIVE_ONLY;
       const start: string =
         "-" + (dashboardConfig.range ?? Duration.hours(8).toIsoString());
 
@@ -94,7 +88,7 @@ export class DefaultDynamicDashboardFactory
         dashboardConfig.name,
         {
           dashboardName: `${props.dashboardNamePrefix}-${dashboardConfig.name}`,
-          start: start,
+          start,
           periodOverride:
             dashboardConfig.periodOverride ?? PeriodOverride.INHERIT,
         }
@@ -105,16 +99,16 @@ export class DefaultDynamicDashboardFactory
   }
 
   protected createDashboard(
-    renderingPreference: DynamicDashboardRenderingPreference,
+    renderingPreference: DashboardRenderingPreference,
     id: string,
     props: DashboardProps
   ) {
     switch (renderingPreference) {
-      case DynamicDashboardRenderingPreference.INTERACTIVE_ONLY:
+      case DashboardRenderingPreference.INTERACTIVE_ONLY:
         return new Dashboard(this, id, props);
-      case DynamicDashboardRenderingPreference.BITMAP_ONLY:
+      case DashboardRenderingPreference.BITMAP_ONLY:
         return new BitmapDashboard(this, id, props);
-      case DynamicDashboardRenderingPreference.INTERACTIVE_AND_BITMAP:
+      case DashboardRenderingPreference.INTERACTIVE_AND_BITMAP:
         return new DashboardWithBitmapCopy(this, id, props);
     }
   }
@@ -122,7 +116,7 @@ export class DefaultDynamicDashboardFactory
   addDynamicSegment(segment: IDynamicDashboardSegment): void {
     for (const type in this.dashboards) {
       const dashboard = this.dashboards[type];
-      dashboard.addWidgets(...segment.widgetsByDashboardType(type));
+      dashboard.addWidgets(...segment.widgetsForDashboard(type));
     }
   }
 
